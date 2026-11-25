@@ -54,12 +54,17 @@ def ingest(start: dt.date, end: dt.date) -> dict[str, int]:
                 )
                 rows, issues = clean_daily(raw, town["name"])
 
-                # A day where every measurement is missing carries no information.
-                # Skip it (and say so) rather than store a row of NULLs.
-                empty = rows.drop(columns="date").isna().all(axis=1)
+                # A day with no measurements carries no information. Skip it (and
+                # say so) rather than store a row of NULLs. This is normal for the
+                # newest days: ERA5 publishes ~5-7 days behind.
+                # rain_hours is left out of the test on purpose: for unpublished
+                # days the API returns precipitation_hours = 0.0 instead of null.
+                measured = ["temp_max_c", "temp_min_c", "precipitation_mm", "wind_max_kmh"]
+                empty = rows[measured].isna().all(axis=1)
                 if empty.any():
-                    log.warning("%s: %d days with no data at all, skipped",
-                                town["name"], int(empty.sum()))
+                    log.info("%s: %d days not published yet (no data), skipped: %s..%s",
+                             town["name"], int(empty.sum()),
+                             rows["date"][empty].min(), rows["date"][empty].max())
 
                 sent = upsert_daily_weather(conn, location_ids[town["name"]], rows[~empty])
                 conn.commit()  # save each chunk as soon as it's loaded

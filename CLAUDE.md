@@ -12,7 +12,8 @@ small example and let me write the next piece when that's practical.
 - Question the project answers: "Is Laguna's rainy season shifting?" (10+ years, 5 towns)
 - Stack: Python 3.13, venv, python-dotenv, requests, pandas, psycopg v3 (raw SQL, no ORM), Neon Postgres,
   GitHub Actions cron, OpenRouter (free model), Discord webhook, Streamlit + Community Cloud, pytest
-- Data source: Open-Meteo forecast and archive APIs (no key). v2 later: DOE weekly fuel prices (pdfplumber)
+- Data source: Open-Meteo archive API (no key), ERA5 model only (`WEATHER_MODEL` in config.py):
+  the default model switches to ECMWF IFS in 2017, which fakes trends. ERA5 lags ~5-7 days. v2 later: DOE weekly fuel prices (pdfplumber)
 - Roadmap and phase status: PLAN.md
 - Layout: pipeline/ (db, init_db, fetch, clean, report) · sql/001_schema.sql · sql/queries/ ·
   dashboard/app.py · tests/ · .github/workflows/ (daily, weekly, keepalive)

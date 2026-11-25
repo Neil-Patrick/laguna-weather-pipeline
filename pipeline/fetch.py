@@ -7,6 +7,8 @@ import time
 
 import requests
 
+from pipeline.config import WEATHER_MODEL
+
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 
 # The daily variables we ask for. Open-Meteo's default units already match our
@@ -33,6 +35,7 @@ def fetch_daily(latitude: float, longitude: float, start_date: str, end_date: st
         "end_date": end_date,
         "daily": ",".join(DAILY_VARIABLES),
         "timezone": "Asia/Manila",  # days run midnight to midnight PHT, not UTC
+        "models": WEATHER_MODEL,    # one model for all years (see config.py)
     }
 
     for attempt in range(1, MAX_ATTEMPTS + 1):

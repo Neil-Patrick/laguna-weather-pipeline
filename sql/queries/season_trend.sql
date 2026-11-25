@@ -12,17 +12,20 @@
 --                     years. Robust: one freak year can't swing it. Standard in
 --                     climate trend studies. If it disagrees with the least-squares
 --                     slope, outliers are driving the result.
--- "All 5 towns" averages the towns per year first. The towns are neighbours with
--- strongly correlated weather, so they are NOT 5 independent pieces of evidence.
+-- "All towns" averages per year first, counting each ERA5 grid cell once: Calamba and
+-- Los Baños share a cell (identical data), so Los Baños is left out of the average.
+-- The towns are neighbours with strongly correlated weather, so they are NOT
+-- independent pieces of evidence.
 -- Positive = later (onset/end) or longer (length).
 
 WITH yearly AS (
     SELECT town, location_id AS sort_key, season_year, onset_day, end_day, length_days
     FROM rainy_seasons
     UNION ALL
-    SELECT 'All 5 towns (average)', 99, season_year,
+    SELECT 'All towns (4 grid cells)', 99, season_year,
            avg(onset_day), avg(end_day), avg(length_days)
     FROM rainy_seasons
+    WHERE town <> 'Los Baños'   -- same ERA5 grid cell as Calamba
     GROUP BY season_year
 ),
 measures AS (

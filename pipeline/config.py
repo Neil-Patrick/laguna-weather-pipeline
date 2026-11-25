@@ -10,9 +10,20 @@ LOCATIONS = [
     {"name": "Los Baños",  "latitude": 14.17025, "longitude": 121.24181},
     {"name": "Biñan",      "latitude": 14.34267, "longitude": 121.08071},
 ]
+# Note: on ERA5's ~25 km grid, Calamba and Los Baños fall in the same cell
+# (14.25, 121.25) and get identical data. Both stay for the dashboard; analysis
+# that combines towns counts that cell once.
 
-# Daily run: re-fetch this many days, so values the archive revises get updated.
-DAILY_LOOKBACK_DAYS = 7
+# Weather model for ALL data. Open-Meteo's default switches from ERA5 to ECMWF IFS
+# in 2017, a jump that would show up as a fake trend (IFS gives up to ~270 mm/year
+# more rain here). Open-Meteo's docs recommend ERA5 or ERA5-Land only for
+# multi-decade climate work; ERA5-Land has no rain data for this area.
+WEATHER_MODEL = "era5"
+
+# Daily run: re-fetch this many days. ERA5 runs ~5-7 days behind, so 14 days covers
+# the newest published days plus revisions. Days not published yet come back empty
+# and are skipped; a later run fills them in.
+DAILY_LOOKBACK_DAYS = 14
 
 # The archive rejects end dates past "yesterday", and its idea of yesterday may
 # follow UTC (8 hours behind PHT). Stopping 2 days before today (PHT) is always safe.
