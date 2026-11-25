@@ -32,3 +32,14 @@ set them as repository secrets.
 | Variable       | Used by          | What it is                                   |
 |----------------|------------------|----------------------------------------------|
 | `DATABASE_URL` | all pipeline jobs | Postgres connection string from Neon (`postgresql://...?sslmode=require`) |
+| `DISCORD_WEBHOOK_URL` | failure alerts (GitHub Actions) | Discord channel webhook (`https://discord.com/api/webhooks/...`) |
+
+## Automation (GitHub Actions)
+
+| Workflow | When | What it does |
+|---|---|---|
+| `daily.yml` | every day 06:17 PHT | `python -m pipeline.ingest` (last 7 available days); Discord alert on failure |
+| `keepalive.yml` | 1st of each month | empty commit if the repo has been quiet 25+ days, so GitHub doesn't disable the schedules after 60 |
+
+Both can be started by hand from the Actions tab (**Run workflow**). `daily.yml` has a **fire drill**
+option that fails on purpose to test the Discord alert.

@@ -1,0 +1,45 @@
+name: Keepalive
+
+# GitHub disables scheduled workflows in a repo with no commits for 60 days.
+# Once a month this checks the last commit, and only if the repo has been quiet
+# for 25+ days does it push an empty commit. Worst case between commits:
+# 25 days + one month (31) = 56 days, safely under 60.
+
+on:
+  schedule:
+    - cron: "43 3 1 * *" # 03:43 UTC on the 1st of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to push the keepalive commit
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Empty commit if the repo has been quiet for 25+ days
+        run: |
+          last_commit=$(git log -1 --format=%ct)
+          age_days=$(( ($(date +%s) - last_commit) / 86400 ))
+          echo "Last commit was ${age_days} days ago"
+          if [ "$age_days" -ge 25 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "chore: keepalive (repo quiet for ${age_days} days)"
+            git push
+          else
+            echo "Recent activity, nothing to do"
+          fi
+
+      - name: Alert Discord on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          jq -n --arg content "❌ **Keepalive failed.** Scheduled jobs may be disabled soon. Logs: ${RUN_URL}" '{content: $content}' \
+            | curl --fail --silent --show-error -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
