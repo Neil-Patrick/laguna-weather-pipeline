@@ -34,8 +34,8 @@ Run modules from repo root with `python -m pipeline.<name>`.
 ## Phases
 - [x] 0 Setup: venv, deps, .gitignore, .env (DATABASE_URL), schema, `python -m pipeline.init_db`
       prints Postgres version + "Locations: 5" (twice, still 5)
-- [ ] 1 Collect + backfill: fetch.py/clean.py (types, ranges, missing values); backfill 10+ yrs
-      from archive API. Done: ~18k rows, a real "rainiest month per town" query works
+- [x] 1 Collect + backfill: fetch.py/clean.py (types, ranges, missing values); backfill from 1991
+      (30-yr climate baseline) from archive API. Done: ~65k rows, a real "rainiest month per town" query works
 - [ ] 2 Automation: daily.yml, re-fetch last 7 days each run (archive lag), secrets in GH Actions,
       fail loudly. Done: 3 unattended runs in a row
 - [ ] 3 Analysis: 5–8 SQL queries (window functions, rolling 7-day rain, cross-town comparison,

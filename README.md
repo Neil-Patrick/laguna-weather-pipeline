@@ -14,6 +14,16 @@ pip install -r requirements.txt
 python -m pipeline.init_db   # creates tables and seeds the 5 towns; safe to re-run
 ```
 
+## Running the pipeline
+
+```powershell
+python -m pipeline.ingest              # daily run: re-fetches the last 7 available days
+python -m pipeline.ingest --backfill   # full history since 1991 (~65k rows, a few minutes)
+python -m pipeline.ingest --start 2020-01-01 --end 2020-12-31   # any range
+```
+
+Every run is an upsert, so re-running any command is safe. The archive data runs about 2 days behind.
+
 ## Environment variables
 
 Put these in a `.env` file at the repo root for local runs (it's gitignored). In GitHub Actions,
