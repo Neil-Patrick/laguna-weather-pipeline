@@ -73,7 +73,7 @@ def theme_colors() -> dict:
 
 # ---------- sections ----------
 
-def header() -> str:
+def header() -> None:
     st.title("Is Laguna's rainy season shifting?")
     st.caption("Daily weather for five towns in Laguna, Philippines, 1991 to now. "
                "ERA5 reanalysis data via Open-Meteo, updated daily.")
@@ -90,6 +90,43 @@ def header() -> str:
         unsafe_allow_html=True,  # static text only; no user or database text here
     )
 
+
+ALL_TOWNS = "All towns (4 grid cells)"
+
+
+def answer_tiles() -> None:
+    """The answer, before any scrolling: three tiles built from the trend queries."""
+    season = query_file("season_trend.sql").set_index(["town", "measure"])
+    rain = query_file("rain_trend.sql").set_index(["town", "measure"])
+    onset, end = season.loc[(ALL_TOWNS, "onset")], season.loc[(ALL_TOWNS, "end")]
+    dec_jan, annual = rain.loc[(ALL_TOWNS, "dec_jan_total")], rain.loc[(ALL_TOWNS, "annual_total")]
+
+    # compare whole verdicts: "no clear trend" also contains the word "clear"
+    timing_clear = onset.verdict != "no clear trend" or end.verdict != "no clear trend"
+    tiles = [
+        ("Rainy-season timing, 1991–2025",
+         "Shifting" if timing_clear else "No clear shift",
+         f"Starts ~{onset.average} ({onset.slope_per_decade:+.1f} days/decade), "
+         f"ends ~{end.average} ({end.slope_per_decade:+.1f} days/decade). "
+         f"Onset: {onset.verdict}; end: {end.verdict}."),
+        ("December–January rain",
+         f"{dec_jan.pct_per_decade:+.0f}% per decade",
+         f"{dec_jan.slope_per_decade:+.0f} mm/decade on a {dec_jan.average:.0f} mm average: "
+         f"{dec_jan.verdict}."),
+        ("Annual rain",
+         f"{annual.pct_per_decade:+.0f}% per decade",
+         f"{annual.slope_per_decade:+.0f} mm/decade on a {annual.average:.0f} mm average: "
+         f"{annual.verdict}."),
+    ]
+    for column, (label, value, detail) in zip(st.columns(3), tiles):
+        with column, st.container(border=True):
+            st.metric(label, value)
+            st.caption(detail)
+    st.caption("Laguna-wide: averaged over the four distinct ERA5 grid cells. "
+               "\"Clear\" means the 95% range of the trend excludes zero.")
+
+
+def town_picker() -> str:
     town = st.segmented_control("Town", TOWNS, default="San Pablo") or "San Pablo"
     if town in SHARED_CELL:
         st.caption(f"{town} and {SHARED_CELL[town]} fall in the same ~25 km ERA5 grid "
@@ -97,8 +134,52 @@ def header() -> str:
     return town
 
 
+# ---------- readable tables ----------
+
+DATE = st.column_config.DateColumn(format="D MMM YYYY")
+YEAR = st.column_config.NumberColumn(format="%d")
+
+
+def _range(row) -> str:
+    return f"{row.ci95_low:+.1f} to {row.ci95_high:+.1f}"
+
+
+def readable_season_trends(df: pd.DataFrame) -> pd.DataFrame:
+    out = pd.DataFrame({
+        "Town": df.town,
+        "Measure": df.measure.map({"onset": "Onset", "end": "End", "length": "Length"}),
+        "Average": df.average,
+        "Trend (days/decade)": df.slope_per_decade.map("{:+.1f}".format),
+        "95% range": df.apply(_range, axis=1),
+        "Robust trend (Sen)": df.sen_slope_per_decade.map("{:+.1f}".format),
+        "Verdict": df.verdict,
+    })
+    return out
+
+
+RAIN_MEASURES = {
+    "annual_total": "Annual total (mm)", "season_total": "Rainy-season total (mm)",
+    "dec_jan_total": "Dec–Jan total (mm)", "days_20mm_plus": "Days with 20+ mm",
+    "wettest_day": "Wettest day (mm)",
+}
+
+
+def readable_rain_trends(df: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame({
+        "Town": df.town,
+        "Measure": df.measure.map(RAIN_MEASURES),
+        "Average": df.average.map("{:.1f}".format),
+        "Trend per decade": df.slope_per_decade.map("{:+.1f}".format),
+        "% per decade": df.pct_per_decade.map("{:+.0f}%".format),
+        "95% range": df.apply(_range, axis=1),
+        "Robust trend (Sen)": df.sen_slope_per_decade.map("{:+.1f}".format),
+        "Verdict": df.verdict,
+    })
+
+
 def latest_report() -> None:
-    st.subheader("Latest weekly report")
+    st.caption("Posted to Discord every Monday. Numbers are computed in SQL; the summary is "
+               "written by an LLM and checked against them before posting.")
     report = run_query("""
         SELECT week_start, summary_text, model, posted_at
         FROM reports WHERE posted_at IS NOT NULL
@@ -167,10 +248,14 @@ def recent_weather(town: str, colors: dict) -> None:
     with st.expander("Show the data as a table"):
         st.dataframe(
             df[["date", "precipitation_mm", "rain_7d_mm", "temp_max_c", "temp_min_c"]]
-            .rename(columns={"precipitation_mm": "rain (mm)", "rain_7d_mm": "7-day rain (mm)",
-                             "temp_max_c": "high (°C)", "temp_min_c": "low (°C)"})
-            .sort_values("date", ascending=False),
-            hide_index=True, width="stretch")
+            .rename(columns={"date": "Date", "precipitation_mm": "Rain (mm)",
+                             "rain_7d_mm": "7-day rain (mm)", "temp_max_c": "High (°C)",
+                             "temp_min_c": "Low (°C)"})
+            .sort_values("Date", ascending=False),
+            hide_index=True, width="stretch",
+            column_config={"Date": DATE,
+                           **{c: st.column_config.NumberColumn(format="%.1f")
+                              for c in ["Rain (mm)", "7-day rain (mm)", "High (°C)", "Low (°C)"]}})
 
 
 def rainy_seasons(town: str, colors: dict) -> None:
@@ -213,8 +298,13 @@ def rainy_seasons(town: str, colors: dict) -> None:
         f"({t.loc['end', 'ci95_low']:+.1f} to {t.loc['end', 'ci95_high']:+.1f}): {t.loc['end', 'verdict']}."
     )
     with st.expander("Show the data as a table"):
-        st.dataframe(seasons[["year", "onset_date", "end_date", "length_days"]]
-                     .sort_values("year", ascending=False), hide_index=True, width="stretch")
+        st.dataframe(
+            seasons[["year", "onset_date", "end_date", "length_days"]]
+            .rename(columns={"year": "Season", "onset_date": "Onset", "end_date": "End",
+                             "length_days": "Length (days)"})
+            .sort_values("Season", ascending=False),
+            hide_index=True, width="stretch",
+            column_config={"Season": YEAR, "Onset": DATE, "End": DATE})
 
 
 def dec_jan_rain(town: str, colors: dict) -> None:
@@ -244,8 +334,15 @@ def dec_jan_rain(town: str, colors: dict) -> None:
         f"{r.verdict}."
     )
     with st.expander("Show the data as a table"):
-        st.dataframe(df[["year", "dec_jan_mm", "trend_mm"]].sort_values("year", ascending=False),
-                     hide_index=True, width="stretch")
+        st.dataframe(
+            df[["year", "dec_jan_mm", "trend_mm"]]
+            .rename(columns={"year": "December of", "dec_jan_mm": "Dec–Jan rain (mm)",
+                             "trend_mm": "Trend line (mm)"})
+            .sort_values("December of", ascending=False),
+            hide_index=True, width="stretch",
+            column_config={"December of": YEAR,
+                           "Dec–Jan rain (mm)": st.column_config.NumberColumn(format="%.1f"),
+                           "Trend line (mm)": st.column_config.NumberColumn(format="%.1f")})
 
 
 def findings() -> None:
@@ -254,9 +351,8 @@ def findings() -> None:
                "Numbers come straight from sql/queries/season_trend.sql and rain_trend.sql.")
     st_ = query_file("season_trend.sql").set_index(["town", "measure"])
     rt = query_file("rain_trend.sql").set_index(["town", "measure"])
-    allt = "All towns (4 grid cells)"
-    on, end = st_.loc[(allt, "onset")], st_.loc[(allt, "end")]
-    dj, ann = rt.loc[(allt, "dec_jan_total")], rt.loc[(allt, "annual_total")]
+    on, end = st_.loc[(ALL_TOWNS, "onset")], st_.loc[(ALL_TOWNS, "end")]
+    dj, ann = rt.loc[(ALL_TOWNS, "dec_jan_total")], rt.loc[(ALL_TOWNS, "annual_total")]
 
     def rng(row):
         return f"95% range {row.ci95_low:+.1f} to {row.ci95_high:+.1f}"
@@ -271,39 +367,48 @@ def findings() -> None:
         f"3. **Annual rain.** {ann.pct_per_decade:+.0f}% per decade "
         f"({ann.slope_per_decade:+.1f} mm/decade on {ann.average:.0f} mm; {rng(ann)}): *{ann.verdict}*."
     )
-    with st.expander("All trends, every town"):
-        st.markdown("**Season timing** (days per decade)")
-        st.dataframe(query_file("season_trend.sql"), hide_index=True, width="stretch")
-        st.markdown("**Rain amounts** (mm or days per decade)")
-        st.dataframe(query_file("rain_trend.sql"), hide_index=True, width="stretch")
+    st.markdown("**Season timing, every town**")
+    st.dataframe(readable_season_trends(query_file("season_trend.sql")),
+                 hide_index=True, width="stretch")
+    st.markdown("**Rain amounts, every town**")
+    st.dataframe(readable_rain_trends(query_file("rain_trend.sql")),
+                 hide_index=True, width="stretch")
 
 
 def method_and_limits() -> None:
-    with st.expander("Method and limits"):
-        st.markdown(
-            "- **Data:** ERA5 reanalysis (a weather model's reconstruction on a ~25 km grid) "
-            "via Open-Meteo, the same model for every year. Not rain-gauge readings.\n"
-            "- **Season dates:** anomalous accumulation (Liebmann & Marengo, 2001): onset is where "
-            "the running total of (daily rain − the town's average) bottoms out; the end is where "
-            "it peaks. Search windows are this project's own choice.\n"
-            "- **Check against PAGASA:** onsets land a median 6 days before PAGASA's declared "
-            "dates (2016–2024). PAGASA's declaration is national, so this is a sanity check.\n"
-            "- **Trends:** least-squares slope with a 95% confidence interval, plus Sen's slope "
-            "as a robustness check. \"No clear trend\" means the range includes zero.\n"
-            "- Code and SQL: the project's GitHub repository."
-        )
+    st.markdown(
+        "- **Data:** ERA5 reanalysis (a weather model's reconstruction on a ~25 km grid) "
+        "via Open-Meteo, the same model for every year. Not rain-gauge readings.\n"
+        "- **Season dates:** anomalous accumulation (Liebmann & Marengo, 2001): onset is where "
+        "the running total of (daily rain − the town's average) bottoms out; the end is where "
+        "it peaks. Search windows are this project's own choice.\n"
+        "- **Check against PAGASA:** onsets land a median 6 days before PAGASA's declared "
+        "dates (2016–2024). PAGASA's declaration is national, so this is a sanity check.\n"
+        "- **Trends:** least-squares slope with a 95% confidence interval, plus Sen's slope "
+        "as a robustness check. \"No clear trend\" means the range includes zero.\n"
+        "- Code and SQL: the project's GitHub repository."
+    )
 
 
 def main() -> None:
     st.set_page_config(page_title="Laguna Weather", page_icon="🌧️", layout="wide")
     colors = theme_colors()
-    town = header()
-    latest_report()
-    recent_weather(town, colors)
-    rainy_seasons(town, colors)
-    dec_jan_rain(town, colors)
-    findings()
-    method_and_limits()
+    header()
+    answer_tiles()
+
+    overview, explore, report, method = st.tabs(
+        ["Overview", "Explore a town", "Weekly report", "Method & limits"])
+    with overview:
+        findings()
+    with explore:
+        town = town_picker()
+        recent_weather(town, colors)
+        rainy_seasons(town, colors)
+        dec_jan_rain(town, colors)
+    with report:
+        latest_report()
+    with method:
+        method_and_limits()
 
 
 main()
