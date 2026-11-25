@@ -42,7 +42,7 @@ Run modules from repo root with `python -m pipeline.<name>`.
       rainy-season start/end per year). Done: 2–3 plain-language findings answering the question
 - [x] 4 Weekly AI report: LLM gets ONLY computed numbers (never does math), output validated,
       fallback to plain-number report, model name in config. Done: first report on Discord
-- [ ] 5 Dashboard: Streamlit, deployed, public link
+- [x] 5 Dashboard: Streamlit, deployed, public link
 - [ ] 6 Polish: README (architecture diagram, setup, findings, design decisions), pytest for
       clean.py + report logic, add to portfolio
 
