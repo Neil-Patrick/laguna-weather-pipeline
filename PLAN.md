@@ -13,7 +13,7 @@ Dashboard: Streamlit, town picker, temp/rain charts, rainy-season view, latest r
 "Data last updated" date.
 
 ## Stack (decided)
-Python 3.12 + venv + pinned requirements.txt (pip freeze) · requests · pandas ·
+Python 3.13 + venv + pinned requirements.txt (pip freeze) · python-dotenv · requests · pandas ·
 psycopg v3 (raw SQL, no ORM) · Neon Postgres (free) · GitHub Actions cron ·
 OpenRouter free model · Discord webhook · Streamlit + Community Cloud · pytest.
 Data source v1: Open-Meteo (forecast + archive APIs, no key). v2 later: DOE weekly fuel
@@ -32,7 +32,7 @@ Run modules from repo root with `python -m pipeline.<name>`.
 - reports(id, week_start UNIQUE, summary_text, model, created_at)
 
 ## Phases
-- [ ] 0 Setup: venv, deps, .gitignore, .env (DATABASE_URL), schema, `python -m pipeline.init_db`
+- [x] 0 Setup: venv, deps, .gitignore, .env (DATABASE_URL), schema, `python -m pipeline.init_db`
       prints Postgres version + "Locations: 5" (twice, still 5)
 - [ ] 1 Collect + backfill: fetch.py/clean.py (types, ranges, missing values); backfill 10+ yrs
       from archive API. Done: ~18k rows, a real "rainiest month per town" query works

@@ -10,7 +10,7 @@ small example and let me write the next piece when that's practical.
 
 ## Project facts
 - Question the project answers: "Is Laguna's rainy season shifting?" (10+ years, 5 towns)
-- Stack: Python 3.12, venv, requests, pandas, psycopg v3 (raw SQL, no ORM), Neon Postgres,
+- Stack: Python 3.13, venv, python-dotenv, requests, pandas, psycopg v3 (raw SQL, no ORM), Neon Postgres,
   GitHub Actions cron, OpenRouter (free model), Discord webhook, Streamlit + Community Cloud, pytest
 - Data source: Open-Meteo forecast and archive APIs (no key). v2 later: DOE weekly fuel prices (pdfplumber)
 - Roadmap and phase status: PLAN.md
