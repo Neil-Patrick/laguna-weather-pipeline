@@ -40,7 +40,7 @@ Run modules from repo root with `python -m pipeline.<name>`.
       fail loudly. Done: 3 unattended runs in a row
 - [x] 3 Analysis: 5–8 SQL queries (window functions, rolling 7-day rain, cross-town comparison,
       rainy-season start/end per year). Done: 2–3 plain-language findings answering the question
-- [ ] 4 Weekly AI report: LLM gets ONLY computed numbers (never does math), output validated,
+- [x] 4 Weekly AI report: LLM gets ONLY computed numbers (never does math), output validated,
       fallback to plain-number report, model name in config. Done: first report on Discord
 - [ ] 5 Dashboard: Streamlit, deployed, public link
 - [ ] 6 Polish: README (architecture diagram, setup, findings, design decisions), pytest for
