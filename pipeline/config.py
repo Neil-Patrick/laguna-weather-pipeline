@@ -29,6 +29,20 @@ DAILY_LOOKBACK_DAYS = 14
 # follow UTC (8 hours behind PHT). Stopping 2 days before today (PHT) is always safe.
 ARCHIVE_LAG_DAYS = 2
 
+# Weekly AI report: OpenRouter free models, tried in order until one returns a summary
+# that passes validation. Free models get rate-limited and come and go, so keep backups;
+# if all fail, the plain-number fallback report is posted instead.
+# Checked 2026-11-26 against https://openrouter.ai/api/v1/models (":free" models).
+REPORT_MODELS = [
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3.5-super-vl:free",
+    "baidu/ernie-5.5-flash-preview:free",
+]
+LLM_TIMEOUT_SECONDS = 90
+# Reasoning models "think" before answering and that uses tokens; with a small
+# budget they run out and return an empty answer. 2000 leaves room for both.
+LLM_MAX_TOKENS = 2000
+
 # Default first day for a backfill (python -m pipeline.ingest --backfill).
 # 1991 covers a full 30-year climate baseline (the WMO's 1991-2020 normals period),
 # so a "rainy season is shifting" claim isn't just one unusual decade.

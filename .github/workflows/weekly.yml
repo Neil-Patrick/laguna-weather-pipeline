@@ -1,0 +1,61 @@
+name: Weekly report
+
+on:
+  schedule:
+    # Monday 01:07 UTC = Monday 09:07 PHT (off the hour, like daily.yml)
+    - cron: "7 1 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-post even if this week's report was already posted"
+        type: boolean
+        default: false
+      fire_drill:
+        description: "Fail on purpose to test the Discord alert"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # up to 3 models x 90 s timeout, plus setup
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install pinned dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests (the report's safeguards)
+        run: pytest -q
+
+      - name: Fire drill (only when requested)
+        if: ${{ inputs.fire_drill }}
+        run: |
+          echo "Failing on purpose to test the alert"
+          exit 1
+
+      - name: Write and post the weekly report
+        run: python -m pipeline.report ${{ inputs.force && '--force' || '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DISCORD_REPORT_WEBHOOK_URL: ${{ secrets.DISCORD_REPORT_WEBHOOK_URL }}
+
+      # Failures go to the alerts channel, not the report channel.
+      - name: Alert Discord on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          jq -n --arg content "❌ **Weekly report failed.** Logs: ${RUN_URL}" '{content: $content}' \
+            | curl --fail --silent --show-error -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"

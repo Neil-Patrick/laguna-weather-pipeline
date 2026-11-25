@@ -38,7 +38,7 @@ Run modules from repo root with `python -m pipeline.<name>`.
       (30-yr climate baseline) from archive API. Done: ~65k rows, a real "rainiest month per town" query works
 - [ ] 2 Automation: daily.yml, re-fetch last 7 days each run (archive lag), secrets in GH Actions,
       fail loudly. Done: 3 unattended runs in a row
-- [ ] 3 Analysis: 5–8 SQL queries (window functions, rolling 7-day rain, cross-town comparison,
+- [x] 3 Analysis: 5–8 SQL queries (window functions, rolling 7-day rain, cross-town comparison,
       rainy-season start/end per year). Done: 2–3 plain-language findings answering the question
 - [ ] 4 Weekly AI report: LLM gets ONLY computed numbers (never does math), output validated,
       fallback to plain-number report, model name in config. Done: first report on Discord

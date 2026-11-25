@@ -49,6 +49,12 @@ python -m pipeline.ingest --backfill   # full history since 1991 (~65k rows, a f
 python -m pipeline.ingest --start 2020-01-01 --end 2020-12-31   # any range
 ```
 
+```powershell
+python -m pipeline.report --dry-run    # weekly report: print it, don't save or post
+python -m pipeline.report              # latest complete week; skips if already posted
+pytest                                 # tests for the report's LLM safeguards
+```
+
 Every run is an upsert, so re-running any command is safe. ERA5 data runs about 5–7 days behind.
 
 ## Environment variables
@@ -59,13 +65,16 @@ set them as repository secrets.
 | Variable       | Used by          | What it is                                   |
 |----------------|------------------|----------------------------------------------|
 | `DATABASE_URL` | all pipeline jobs | Postgres connection string from Neon (`postgresql://...?sslmode=require`) |
-| `DISCORD_WEBHOOK_URL` | failure alerts (GitHub Actions) | Discord channel webhook (`https://discord.com/api/webhooks/...`) |
+| `DISCORD_WEBHOOK_URL` | failure alerts (GitHub Actions) | Discord webhook for the alerts channel (`https://discord.com/api/webhooks/...`) |
+| `DISCORD_REPORT_WEBHOOK_URL` | weekly report | Discord webhook for the `#weekly-report` channel |
+| `OPENROUTER_API_KEY` | weekly report | OpenRouter API key (free models); if missing, the plain-number report is sent |
 
 ## Automation (GitHub Actions)
 
 | Workflow | When | What it does |
 |---|---|---|
 | `daily.yml` | every day 06:17 PHT | `python -m pipeline.ingest` (last 14 days); Discord alert on failure |
+| `weekly.yml` | Mondays 09:07 PHT | runs the tests, then `python -m pipeline.report`: SQL numbers → LLM summary (validated) → `#weekly-report`; plain-number fallback if the LLM fails; skips weeks already posted |
 | `keepalive.yml` | 1st of each month | empty commit if the repo has been quiet 25+ days, so GitHub doesn't disable the schedules after 60 |
 
 Both can be started by hand from the Actions tab (**Run workflow**). `daily.yml` has a **fire drill**
