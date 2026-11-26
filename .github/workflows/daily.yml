@@ -31,13 +31,17 @@ jobs:
       - name: Install pinned dependencies
         run: pip install -r requirements.txt
 
+      # A broken change fails here, before any data is written (and the alert fires).
+      - name: Run tests
+        run: pytest -q
+
       - name: Fire drill (only when requested)
         if: ${{ inputs.fire_drill }}
         run: |
           echo "Failing on purpose to test the alert"
           exit 1
 
-      - name: Fetch, clean and load the last 7 days
+      - name: Fetch, clean and load the last 14 days
         run: python -m pipeline.ingest
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

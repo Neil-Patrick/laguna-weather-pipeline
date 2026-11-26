@@ -29,12 +29,20 @@ def get_location_ids(conn) -> dict[str, int]:
     return dict(conn.execute("SELECT name, id FROM locations").fetchall())
 
 
+def to_params(location_id: int, rows: pd.DataFrame) -> list[tuple]:
+    """Turn cleaned rows into parameter tuples for UPSERT_DAILY_WEATHER.
+
+    pandas uses NaN for missing; psycopg sends None as SQL NULL. Sending NaN instead
+    would store a floating-point NaN *number*, which breaks AVG() and IS NULL checks.
+    """
+    weather = rows[WEATHER_COLUMNS]
+    weather = weather.astype(object).where(weather.notna(), None)
+    return [(location_id, *values) for values in weather.itertuples(index=False, name=None)]
+
+
 def upsert_daily_weather(conn, location_id: int, rows: pd.DataFrame) -> int:
     """Upsert one town's cleaned rows. Returns how many rows were sent."""
-    weather = rows[WEATHER_COLUMNS]
-    # pandas uses NaN for missing; psycopg sends None as SQL NULL.
-    weather = weather.astype(object).where(weather.notna(), None)
-    params = [(location_id, *values) for values in weather.itertuples(index=False, name=None)]
+    params = to_params(location_id, rows)
     with conn.cursor() as cur:
         cur.executemany(UPSERT_DAILY_WEATHER, params)
     return len(params)

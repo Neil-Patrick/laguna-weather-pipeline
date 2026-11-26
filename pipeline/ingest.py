@@ -11,6 +11,8 @@ import datetime as dt
 import logging
 from zoneinfo import ZoneInfo
 
+import pandas as pd
+
 from pipeline.clean import clean_daily
 from pipeline.config import ARCHIVE_LAG_DAYS, BACKFILL_START, DAILY_LOOKBACK_DAYS, LOCATIONS
 from pipeline.db import get_connection
@@ -36,6 +38,17 @@ def year_chunks(start: dt.date, end: dt.date):
         chunk_start = chunk_end + dt.timedelta(days=1)
 
 
+def unpublished_days(rows: pd.DataFrame) -> pd.Series:
+    """True for days with no measurements at all (not published yet by ERA5).
+
+    rain_hours is left out on purpose: for unpublished days the API returns
+    precipitation_hours = 0.0 instead of null, so counting it would make an empty
+    day look like real data (this happened once; see tests/test_ingest.py).
+    """
+    measured = ["temp_max_c", "temp_min_c", "precipitation_mm", "wind_max_kmh"]
+    return rows[measured].isna().all(axis=1)
+
+
 def ingest(start: dt.date, end: dt.date) -> dict[str, int]:
     """Load every town for [start, end]. Any error stops the run and the process exits non-zero."""
     totals = {"rows": 0, "rejected_values": 0, "empty_days": 0}
@@ -54,13 +67,9 @@ def ingest(start: dt.date, end: dt.date) -> dict[str, int]:
                 )
                 rows, issues = clean_daily(raw, town["name"])
 
-                # A day with no measurements carries no information. Skip it (and
-                # say so) rather than store a row of NULLs. This is normal for the
-                # newest days: ERA5 publishes ~5-7 days behind.
-                # rain_hours is left out of the test on purpose: for unpublished
-                # days the API returns precipitation_hours = 0.0 instead of null.
-                measured = ["temp_max_c", "temp_min_c", "precipitation_mm", "wind_max_kmh"]
-                empty = rows[measured].isna().all(axis=1)
+                # Skip (and say so) days with no measurements, rather than store
+                # a row of NULLs. Normal for the newest days: ERA5 lags ~5-7 days.
+                empty = unpublished_days(rows)
                 if empty.any():
                     log.info("%s: %d days not published yet (no data), skipped: %s..%s",
                              town["name"], int(empty.sum()),
