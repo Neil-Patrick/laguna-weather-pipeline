@@ -15,8 +15,9 @@
 --
 -- Why this method: each town is compared with its own average, so the model's
 -- bias toward too many light-rain days largely cancels out. PAGASA's threshold
--- rule fired ~31 days early on this data (sql/queries/rainy_season_onset.sql);
--- this method is a median 5 days before PAGASA's declarations, 2016-2024.
+-- rule fired a median 28 days early on this data (sql/queries/rainy_season_onset.sql);
+-- this method is a median 6 days before PAGASA's declarations, 2016-2024
+-- (sql/queries/onset_vs_pagasa.sql).
 --
 -- Search windows (OUR choice, not taken from a paper): the plain method breaks in
 -- drier-than-average years, where the running total drifts down all year and its

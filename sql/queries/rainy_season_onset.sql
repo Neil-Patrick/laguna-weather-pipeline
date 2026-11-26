@@ -1,6 +1,6 @@
 -- REJECTED APPROACH, kept to document the validation. Use rainy_season.sql instead.
--- Checked against PAGASA's declared onset dates 2016-2024, this rule fired a median
--- 31 days early (only 22% of town-years within +-10 days). Cause: the model data has
+-- Checked against PAGASA's declared onset dates 2016-2024 (ERA5 data, 4 grid cells), this
+-- rule fired a median 28 days early (only 31% of town-years within +-10 days). Cause: the model data has
 -- too many light-rain days, so the 25 mm / 3-wet-day test passes in April and 10-day
 -- dry spells (the false-start check) almost never happen.
 --
